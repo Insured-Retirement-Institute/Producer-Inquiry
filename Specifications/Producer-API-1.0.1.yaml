@@ -1,0 +1,940 @@
+openapi: 3.1.0
+info:
+  version: 1.0.0
+  title: Producer Services API
+  description: |
+    This API provides comprehensive services for managing producer eligibility 
+    and training requirements. It enables organizations to:
+    
+    - Verify eligibility for producers to sell specific products
+    - Record and track training completion records
+    - Ensure compliance with regulatory requirements
+    - Manage licensing and appointment status
+    
+    The API supports both real-time eligibility checks and bulk training record submissions.
+  contact:
+    name: Insured Retirement Institute
+    url: https://github.com/Insured-Retirement-Institute/Producer-Training
+    email: technicalsupport@iri.org
+tags:
+- name: Producer Eligibility
+  description: Determine eligibility for producers to sell specific products
+    based on licensing, appointments, and regulatory requirements.
+- name: Training Management
+  description: Record and manage training completion records for producers
+    including product training, state requirements, and continuing education.
+
+security:
+  - bearerAuth: []
+  - basicAuth: []
+
+paths:
+  /producer/eligibilities:
+    post:
+      operationId: checkProducersEligibilities
+      summary: Determine eligibility of product sell for a list of producers 
+      description: |
+        Evaluates whether one or more producers are eligible to sell a specific
+        financial product in a given jurisdiction. The system checks licensing, appointments,
+        training requirements, and regulatory compliance to return an eligibility decision.
+        
+        Response codes:
+        - APPROVED: Financial professional meets all requirements
+        - CONDITIONAL: Additional information or actions required
+        - DENIED: Financial professional cannot sell the product
+      parameters:
+      - $ref: '#/components/parameters/transaction_id_header'
+      tags:
+      - Producer Eligibility
+      requestBody:
+        $ref: '#/components/requestBodies/ProducerEligibilityRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/producerEligibilityResponse'
+        '400':
+          $ref: '#/components/responses/400StandardMessageResponse'
+        '401':
+          $ref: '#/components/responses/401StandardMessageResponse'
+        '403':
+          $ref: '#/components/responses/403StandardMessageResponse'
+        '500':
+          $ref: '#/components/responses/500StandardMessageResponse'
+        default:
+          $ref: '#/components/responses/DefaultStandardMessageResponse'
+  /producer/courses:
+    post:
+      tags:
+      - Training Management
+      summary: Create a training completion record for a producer
+      description: |
+        Submit training completion information for a specific producer identified by their NPN.
+        This endpoint allows recording of completed courses including product training, state-specific training,
+        and best interest training requirements.
+      operationId: createTrainingCompletion
+      parameters:
+      - $ref: '#/components/parameters/RequestIdParam'
+      - $ref: '#/components/parameters/PartnerIdParam'
+      - $ref: '#/components/parameters/TraceIdParam'
+      requestBody:
+        description: Training completion record to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCompletionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/TrainingCompletionResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404ResourceNotFoundError'
+        '500':
+          $ref: '#/components/responses/500ServerError'
+        '501':
+          $ref: '#/components/responses/501NotImplementedServerError'
+        '502':
+          $ref: '#/components/responses/502BadGatewayError'
+        '503':
+          $ref: '#/components/responses/503ServiceUnavailablesServerError'
+        '504':
+          $ref: '#/components/responses/504GatewayTimeoutError'
+      security:
+      - bearerAuth: []
+      - basicAuth: []
+components:
+  parameters:
+    transaction_id_header:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: A unique identifier for each transaction. Matches trackingNumber
+        in request transaction information element.
+      schema:
+        type: string
+      example: 451424606200000000001 where 4514 is NW Carrier ID, 246062 is Julian
+        for 11/5/2024 and 0000000001 is a sequence number.
+    RequestIdParam:
+      name: X-RequestID
+      in: header
+      description: Unique request id for each service call. Set by client
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    PartnerIdParam:
+      name: x-partner-id
+      in: header
+      description: partner id (who is calling the API)
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    TraceIdParam:
+      name: x-trace-id
+      in: header
+      description: trace id
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+  securitySchemes:
+    MyAPIKey:
+      type: apiKey
+      description: The Client ID (or Key) provided by NW's Developer Portal for your
+        application
+      in: header
+      name: client_id
+    bearerAuth:
+      type: http
+      description: A bearer token in the format of a JWS and conforms to the specifications
+        included in RFC8725
+      scheme: bearer
+      bearerFormat: JWT
+    basicAuth:
+      type: http
+      scheme: basic
+  requestBodies:
+    ProducerEligibilityRequest:
+      description: Parameters passed as part of the request body.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              productIdentifier:
+                type: string
+                description: Product CUSIP
+              policyNumber:
+                type: string
+                description: The unique number assigned to the policy, or submission,
+                  being referenced.
+                minLength: 1
+                maxLength: 30
+                pattern: (^[0-9A-Za-z*@#\s.,'_/~%$!();:&amp;&quot;+&#x00ae;`\-\\?"=]{1,30}$)
+              signedDate:
+                type: string
+                format: date
+                description: Date of Initiation or Submission. CCYY-MM-DD format.
+              transactionInformation:
+                $ref: '#/components/schemas/transactionInformation'
+              applicationSigned:
+                type: object
+                description: Placeholder for applicationSigned details. Define properties
+                  as needed.
+              solicitation:
+                $ref: '#/components/schemas/solicitation'
+              ProducerList:
+                type: array
+                description: List of Producers to evaluate for eligibility.
+                items:
+                  $ref: '#/components/schemas/producer'
+                minItems: 1
+                maxItems: 25
+            required:
+            - transactionInformation
+            - productIdentifier
+            - ProducerList
+  responses:
+    producerEligibilityResponse:
+      description: 200 response payload.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              transactionInformation:
+                $ref: '#/components/schemas/transactionInformation'
+              eligibilityResults:
+                type: array
+                items:
+                  $ref: '#/components/schemas/eligibilityResponseList'
+                minItems: 1
+                maxItems: 25
+            required:
+            - transactionInformation
+            - eligibilityResults
+    400StandardMessageResponse:
+      description: Input validation errored with StandardMessage containing error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardMessage'
+    401StandardMessageResponse:
+      description: Proper user authentication credentials were not provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardMessage'
+    403StandardMessageResponse:
+      description: The user is not authorized to make this request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardMessage'
+    500StandardMessageResponse:
+      description: There was a problem with either the network or the server. Please
+        see the included message for more details.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardMessage'
+    DefaultStandardMessageResponse:
+      description: There was a problem. Please see the included message for more details.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardMessage'
+    TrainingCompletionResponse:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TrainingCompletionResponse'
+          examples:
+            mixedResult:
+              value:
+                statusCode: 200
+                statusMessage: Some courses succeeded, others failed validation.
+                validCourses:
+                - courseProviderId: CP001
+                  vendorId: V123
+                  courseType: Product
+                  trainingMethod: OnlineTraining
+                  courseNumber: C12345
+                  statusCode: 200
+                  statusMessage: Course successfully updated
+                invalidCourses:
+                - courseProviderId: CP002
+                  vendorId: V124
+                  courseType: State
+                  trainingMethod: Classroom
+                  courseNumber: C12346
+                  statusCode: 400
+                  statusMessage: Validation Error
+                  errors:
+                  - value: C12346
+                    msg: Course number is invalid.
+                    param: courses[1].courseNumber
+                    location: body
+            Result:
+              value:
+                statusCode: 200
+                statusMessage: All courses were processed successfull.
+                validCourses:
+                - courseProviderId: CP001
+                  vendorId: V123
+                  courseType: Product
+                  trainingMethod: OnlineTraining
+                  courseNumber: C12345
+                  statusCode: 200
+                  statusMessage: Course successfully updated
+                invalidCourses: []
+    400BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            badRequest:
+              value:
+                statusCode: 400,
+                statusMessage: All courses failed validatio
+                invalidCourses:
+                - courseProviderId: ''
+                  vendorId: V124
+                  courseType: State
+                  trainingMethod: Classroom
+                  courseNumber: C12346
+                  statusCode: 400
+                  statusMessage: Validation Error
+                  errors:
+                  - value: C12346
+                    msg: Course Provider ID cannot be empt.
+                    param: courses[1].courseNumber
+                    location: body
+    401UnauthorizedError:
+      description: Unauthorized Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: UNAUTHORIZED
+              message:
+                type: string
+                example: Unauthorized Error Occured
+    403Forbidden:
+      description: Forbidden Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: FORBIDDEN
+              message:
+                type: string
+                example: Forbidden Error Occured
+    404ResourceNotFoundError:
+      description: Resource Not Found Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                status: NOT_FOUND
+                message: Resource not found
+    500ServerError:
+      description: An internal server error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            internalServerError:
+              value:
+                status: INTERNAL_SERVER_ERROR
+                message: A server error occurred
+    501NotImplementedServerError:
+      description: Not Implemented Server error occurred
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: NOT_IMPLEMENTED_SERVER_ERROR
+              message:
+                type: string
+                example: Not Implemented Server error occurred
+    502BadGatewayError:
+      description: Bad Gateway error occurred
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: BAD_GATEWAY_ERROR
+              message:
+                type: string
+                example: Bad Gateway error occurred
+    503ServiceUnavailablesServerError:
+      description: Service Unavailable error occurred
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: SERVICE_UNAVAILABLE_ERROR
+              message:
+                type: string
+                example: Service Unavailable error occurred
+    504GatewayTimeoutError:
+      description: Gateway Timeout Error occurred
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: GATEWAY_TIMEOUT_ERROR
+              message:
+                type: string
+                example: A server error occurred
+  schemas:
+    StandardMessage:
+      type: object
+      required:
+      - developerMessage
+      properties:
+        userMessage:
+          type: string
+          description: User-friendly message for the Warning/Error.
+        developerMessage:
+          type: string
+          description: Developer information on the Warning/Error.
+        MessageId:
+          type: string
+          description: NW Message ID provided in the header and used in the API log.
+            This id should be included in any user messaging to assist in troubleshooting.
+        code:
+          type: string
+          description: Code generated by the API to identify the specific error.
+        source:
+          type: string
+          description: The field or resource which triggered the message.
+        docs:
+          type: string
+          description: The URL to documentation that will provide more information.
+    transactionInformation:
+      type: object
+      description: The Transaction Information Resource is designed to provide all the
+        information about a transaction request.
+      properties:
+        associatedFirmId:
+          type: string
+          description: This is to identify the associate Firm ID of this particular
+            transaction.
+          minLength: 1
+          maxLength: 65
+        businessPurposeTypeCode:
+          type: string
+          description: A code indicating the business event being submitted in this
+            message.
+          enum:
+          - 'ELIGIBILITY_INQUIRY'
+        effectiveDate:
+          type: string
+          description: The date on which this transaction takes effect. CCYY-MM-DD
+            format.
+          format: date
+        processingStageCode:
+          type: string
+          description: This is to identify the processing stage (INITIAL = Initiation,
+            SUBMISSION = Submission) of this particular transaction.
+          enum:
+          - INITIAL
+          - SUBMISSION
+        receiver:
+          type: string
+          description: This is to identify the recivever of this particular transaction.
+          minLength: 8
+          maxLength: 8
+          pattern: (^[0-9]{1,9}$)(?<!^0+$)
+        sender:
+          type: string
+          description: This is to identify the sender of this particular transaction.
+          minLength: 8
+          maxLength: 8
+          pattern: (^[0-9]{1,9}$)(?<!^0+$)
+        trackingNumber:
+          type: string
+          description: This is an alphanumeric value used to identify a specific transaction.
+          minLength: 1
+          maxLength: 65
+      additionalProperties: false
+      required:
+      - businessPurposeTypeCode
+      - effectiveDate
+      - receiver
+      - sender
+      - trackingNumber
+      - processingStageCode
+    partyIdentity:
+      type: object
+      description: This object will contain information regarding identification associated
+        to a specific Producer.
+      properties:
+        typeCode:
+          type: string
+          description: A code identifying individual type of unique identifier.
+          enum:
+          - CRD
+          - NPN
+          - SSN
+        typeId:
+          type: string
+          description: This is the unique Identifier for the Producer
+            with whom partyIdentity is associated.
+          minLength: 5
+          maxLength: 10
+    addressBase:
+      type: object
+      description: This object is a subset of address and is used when the address
+        information is inherited into other objects. This identifies the state, province
+        or national subdivision. The specific values depend upon the national  jurisdiction
+        and will be code value.
+      properties:
+        stateOrProvinceCode:
+          type: string
+          description: This identifies the state, province or national subdivision.
+            The specific values depend upon the national jurisdiction and will be
+            code value.
+          x-codeList: stateOrProvinceCode
+      additionalProperties: false
+      required:
+      - stateOrProvinceCode
+    producer:
+      type: object
+      description: Information about a producer including identification,
+        name details, and role information.
+      properties:
+        sequenceNumber:
+          type: number
+          description: Sequential identifier for this professional in the request list.
+          minimum: 1
+          maximum: 25
+        fullName:
+          type: string
+          description: Complete name of the producer
+          maxLength: 250
+        givenName:
+          type: string
+          description: First name of the producer
+          minLength: 1
+          maxLength: 105
+        surname:
+          type: string
+          description: Last name or family name of the producer
+          minLength: 1
+          maxLength: 105
+        roleCode:
+          type: string
+          description: Professional role or designation
+          enum:
+          - 'PRODUCER'
+          - 'AGENT'
+          - 'BROKER'
+          - 'GENERAL_AGENT'
+          - 'SUPERVISOR'
+          - 'REPRESENTATIVE'
+        partyIdentity:
+          type: array
+          description: List of identification numbers for the producer
+          items:
+            $ref: '#/components/schemas/partyIdentity'
+          minItems: 1
+          maxItems: 3
+      required:
+      - sequenceNumber
+      - givenName
+      - surname
+      - partyIdentity
+    eligibilityResponseList:
+      type: array
+      items:
+        $ref: '#/components/schemas/eligibilityResponseItem'
+      description: List of eligibility decisions for the requested producers.
+    eligibilityResponseItem:
+      type: object
+      description: Eligibility decision result for a specific producer
+      properties:
+        sequenceNumber:
+          type: number
+          description: Sequential identifier matching the request
+          minimum: 1
+          maximum: 25
+        givenName:
+          type: string
+          description: First name of the producer
+          minLength: 1
+          maxLength: 105
+        surname:
+          type: string
+          description: Last name of the producer
+          minLength: 1
+          maxLength: 105
+        roleCode:
+          type: string
+          description: Professional role or designation
+          enum:
+          - 'PRODUCER'
+          - 'AGENT'
+          - 'BROKER'
+          - 'GENERAL_AGENT'
+          - 'SUPERVISOR'
+          - 'REPRESENTATIVE'
+        statusCode:
+          type: string
+          description: Eligibility decision result
+          enum:
+          - 'APPROVED'
+          - 'CONDITIONAL'
+          - 'DENIED'
+          example: 'DENIED'
+        statusMessage:
+          type: string
+          description: Human-readable explanation of the eligibility decision
+          maxLength: 500
+        errors:
+          type: array
+          description: List of issues that prevented approval (if applicable)
+          items:
+            $ref: '#/components/schemas/errorDetails'
+          maxItems: 10
+      required:
+      - sequenceNumber
+      - statusCode
+    errorDetails:
+      type: object
+      description: This object is used in a response message to provide the complete
+        status from the result of processing the matching request.  This object will
+        be applied for each Producer in the producerInfoList.
+      properties:
+        errorCode:
+          type: string
+          description: This provides the overall error code for the message. Extended
+            information might be provided depending on the code.
+          enum:
+          - 'INVALID_LICENSE'
+          - 'EXPIRED_APPOINTMENT'
+          - 'MISSING_TRAINING'
+          - 'INVALID_PRODUCT'
+          - 'JURISDICTION_RESTRICTION'
+          - 'COMPLIANCE_VIOLATION'
+          - 'PENDING_REVIEW'
+          - 'SYSTEM_ERROR'
+        errorDescription:
+          type: string
+          description: Message error description. General explanatory text associated
+            with the message error code. Some error codes require additional explanation
+            which will be appended here.
+          minLength: 1
+          maxLength: 2000
+          example: License expired or appointment terminated.
+    applicationSigned:
+      allOf:
+      - $ref: '#/components/schemas/addressBase'
+    solicitation:
+      allOf:
+      - $ref: '#/components/schemas/addressBase'
+    TrainingCompletionRequest:
+      type: object
+      properties:
+        nationalProducerNumber:
+          type: string
+          description: National Producer Number
+          example: '1234567890'
+        courses:
+          type: array
+          description: Array of course records
+          items:
+            type: object
+            properties:
+              courseProviderId:
+                type: string
+                description: Course Provider ID
+                pattern: ^[A-Za-z0-9]+$
+                minLength: 1
+                maxLength: 4
+                example: REGD
+              vendorId:
+                type: string
+                description: Training vendor
+                pattern: ^[A-Za-z0-9-]+$
+                minLength: 1
+                maxLength: 10
+                example: V123
+              courseType:
+                type: string
+                enum:
+                - Product
+                - State
+                - BestInterest
+                description: Course Type
+                example: Product
+              trainingMethod:
+                type: string
+                enum:
+                - OnlineTraining
+                - Classroom
+                - ReferenceMaterials
+                - Wholesaler
+                description: Training Method Code
+                example: OnlineTraining
+              courseNumber:
+                type: string
+                description: Course Number
+                pattern: ^[A-Za-z0-9]+$
+                minLength: 1
+                maxLength: 20
+                example: C12345
+              completionDate:
+                type: string
+                description: Course Completion Date
+                format: date
+                example: '2024-04-10'
+              state:
+                type: string
+                description: The state where training was completed.  If courseType
+                  is Product, state is optional
+                pattern: ^[A-Z]{2}$
+                example: NY
+              productTrainingCategory:
+                type: string
+                enum:
+                - FixedDeferredAnnuity
+                - AllInsuranceProducts
+                - VariableFixedDeferredAnnuity
+                - LongTermDisability
+                - EquityIndexAnnuity
+                - FixedImmediateAnnuity
+                - VariableImmediateAnnuity
+                - LongTermCare
+                - N/A
+                - PartnershipDisability
+                - Life
+                - VariableDeferredAnnuity
+                - AllAnnuities
+                - AllFixedAnnuities
+                - AllVariableAnnuities
+                description: Product Training Category
+                example: FixedDeferredAnnuity
+              title:
+                type: string
+                description: 'Title of the course.
+
+                  - Required for ''State'' and ''Best Interest'' course types.
+
+                  - For ''product'' course type, it defaults to 24PRUCDA01 if not
+                  provided.
+
+                  '
+                maxLength: 40
+                example: Title of the course
+              expiryDate:
+                type: string
+                description: Expiry date of the training. If not provided, defaults
+                  to "12/31/9999".
+                format: date
+                example: '2024-04-10'
+              creditHours:
+                type: integer
+                description: 'The Number of hours assigned to this course for training
+                  purpose.
+
+                  - Required for ''State'' and ''Best Interest'' course types.
+
+                  - For ''product'' course type, it defaults to 0 if not provided.
+
+                  '
+                format: int32
+                minimum: 0
+                maximum: 99
+                example: 4
+              certificationDate:
+                type: string
+                description: Course Certification Date
+                format: date
+                example: '2024-04-10'
+              certificationNumber:
+                type: string
+                description: Course Certification Number
+                example: CERT123456
+            required:
+            - courseProviderId
+            - vendorId
+            - courseType
+            - trainingMethod
+            - courseNumber
+            - completionDate
+            - productTrainingCategory
+      required:
+      - nationalProducerNumber
+      - courses
+    TrainingCompletionResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          description: Status Code for the course update operation
+          format: int32
+          minimum: 0
+          maximum: 1000
+          example: 400
+        statusMessage:
+          type: string
+          description: Status Message for the course update operation
+          example: Validation Error
+        validCourses:
+          type: array
+          description: Array of courses that were successfully processed
+          items:
+            $ref: '#/components/schemas/ValidCourseResponse'
+        invalidCourses:
+          type: array
+          description: Array of courses that failed validation
+          items:
+            $ref: '#/components/schemas/InvalidCourseResponse'
+    ValidCourseResponse:
+      type: object
+      properties:
+        courseProviderId:
+          type: string
+          description: Course Provider ID
+        vendorId:
+          type: string
+          description: Training vendor
+        courseType:
+          type: string
+          description: Course Type
+        trainingMethod:
+          type: string
+          description: Training Method Code
+        courseNumber:
+          type: string
+          description: Course Number
+        statusCode:
+          type: integer
+          description: Status Code for the course update operation
+          format: int32
+          minimum: 0
+          maximum: 1000
+        statusMessage:
+          type: string
+          description: Status Message for the course update operation
+    InvalidCourseResponse:
+      type: object
+      properties:
+        courseProviderId:
+          type: string
+          description: Course Provider ID
+        vendorId:
+          type: string
+          description: Training vendor
+        courseType:
+          type: string
+          description: Course Type
+          enum:
+          - Product
+          - State
+          - BestInterest
+        trainingMethod:
+          type: string
+          description: Training Method Code
+          enum:
+          - OnlineTraining
+          - Classroom
+          - ReferenceMaterials
+          - Wholesaler
+        courseNumber:
+          type: string
+          description: Course Number
+        statusCode:
+          type: integer
+          description: Status Code for the course update operation
+          format: int32
+          minimum: 0
+          maximum: 1000
+          example: 400
+        statusMessage:
+          type: string
+          description: Status Message for the course update operation
+          example: Validation Error
+        errors:
+          type: array
+          description: List of validation errors for this course
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+                description: Invalid value that caused the error
+              msg:
+                type: string
+                description: Human-readable error message
+              param:
+                type: string
+                description: Parameter name that contains the error
+              location:
+                type: string
+                description: Location of the error (e.g., body, query, params)
+                enum:
+                - body
+                - query
+                - params
+                - headers
+    ErrorResponse:
+      type: object
+      description: Standard error response format used across the API
+      properties:
+        status:
+          type: string
+          description: Error status indicator
+          example: ERROR
+        message:
+          type: string
+          description: Human-readable error description
+          example: An error occurred while processing the request
+        code:
+          type: string
+          description: Specific error code for programmatic handling
+          example: VALIDATION_FAILED
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the error occurred
+          example: "2024-07-10T14:30:00Z"
+      required:
+      - status
+      - message

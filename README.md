@@ -1,28 +1,16 @@
-# Define repoistory name
+# Producer Training
 
-Define description.
+This Training Update API provides financial professionals with real-time visibility into their training statuses, reducing errors and enhancing the client experience. By addressing the issue of delayed or inaccurate training data, it helps prevent submission issues and maintains trust in financial transactions. This API delivers up-to-date training completion information, supporting a variety of certifications such as State, Product, and Anti-Money Laundering. The API can be integrated into multiple platforms, streamlining processes for distributors, carriers, and financial professionals.
+![image](https://github.com/user-attachments/assets/8786f0d9-faae-4d17-a6b5-299cd56266dd)
+
 
 ## Get started
-We are currently in the process of standing up [SwaggerHub](https://wwww.swaggerhub.com) to host OpenAPI definitions. More to come.
-
 Please refer to the [style guide](https://github.com/Insured-Retirement-Institute/Style-Guide) for technical governance of standards, data dictionary, and the code of conduct.
 
-## Business Case
-Define your business case for the specification.
+## Specification Champions (GitHub Owners)
+Lana Nelson <LNelson@athene.com>-Athene, RegEd
 
-## User Stories, personna - supporting documents for the business case
-- Load your user stories, personna - supporting documents for the business case.
-
-## Business Owners 
-- Carrier Business Owner: contact
-- Distributor Business Owner: contact
-- Solution Provider Business Owner: contact
-
-## How to engage, contribute, and give feedback
-- These working groups are occuring on ....
-- Please contact the business owners or IRI (hpikus@irionline.org) to get added to the working group discussions. 
-
-## Change subsmissions and reporting issues and bugs
+## Change submissions and reporting issues and bugs
 
 Security issues and bugs should be reported directly to Katherine Dease kdease@irionline.org. Issues and bugs can be reported directly within the issues tab of a repository. Change requests should follow the standards governance workflow outlined on the [main page](https://github.com/Insured-Retirement-Institute).
 
